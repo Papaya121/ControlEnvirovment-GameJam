@@ -10,6 +10,10 @@ Shader "SyntyStudios/Zombies"
         [HDR] _EmissiveColor("Emissive Color", Color) = (0, 0, 0, 0)
         _Glossiness("Glossiness", Range(0, 1)) = 0.5
         _SpecularHighlights("Specular Highlights", Float) = 1
+        _Wetness("Wetness", Range(0, 1)) = 0
+        _Frozen("Frozen", Range(0, 1)) = 0
+        _FrozenTint("Frozen Tint", Color) = (0.78, 0.88, 1.0, 1.0)
+        _FrozenRimStrength("Frozen Rim Strength", Range(0, 2)) = 0.8
     }
 
     SubShader
@@ -53,9 +57,13 @@ Shader "SyntyStudios/Zombies"
                 float4 _Emissive_ST;
                 half4 _BloodColor;
                 half4 _EmissiveColor;
+                half4 _FrozenTint;
                 half _BloodAmount;
                 half _Glossiness;
                 half _SpecularHighlights;
+                half _Wetness;
+                half _Frozen;
+                half _FrozenRimStrength;
             CBUFFER_END
 
             TEXTURE2D(_Texture);
@@ -145,8 +153,22 @@ Shader "SyntyStudios/Zombies"
 
                 half3 normalWS = NormalizeNormalPerPixel(input.normalWS);
                 half3 viewDirWS = SafeNormalize(GetWorldSpaceViewDir(input.positionWS));
-                half smoothnessPower = exp2(10.0h * _Glossiness + 1.0h);
-                half specIntensity = 0.2h * _SpecularHighlights;
+                half wetness = saturate(_Wetness);
+                half frozen = saturate(_Frozen);
+
+                // Wetness darkens diffuse slightly but boosts smooth highlights.
+                half wetDarken = lerp(1.0h, 0.72h, wetness);
+                albedo *= wetDarken;
+
+                // Snow/freeze shifts color toward cold tones and removes some saturation.
+                half grayscale = dot(albedo, half3(0.299h, 0.587h, 0.114h));
+                half freezeDesaturate = frozen * 0.5h;
+                albedo = lerp(albedo, grayscale.xxx, freezeDesaturate);
+                albedo = lerp(albedo, albedo * _FrozenTint.rgb, frozen * 0.8h);
+
+                half weatherSmoothness = saturate(_Glossiness + wetness * 0.35h + frozen * 0.2h);
+                half smoothnessPower = exp2(10.0h * weatherSmoothness + 1.0h);
+                half specIntensity = 0.2h * _SpecularHighlights * (1.0h + wetness * 1.2h + frozen * 0.6h);
                 half4 specularParams = half4(specIntensity, specIntensity, specIntensity, 1.0h);
 
                 float4 shadowCoord;
@@ -181,6 +203,12 @@ Shader "SyntyStudios/Zombies"
             #endif
 
                 half3 color = albedo * diffuseLighting + specularLighting + emission;
+
+                // Icy rim for frozen targets to make freeze read clearly from distance.
+                half ndv = saturate(dot(normalWS, viewDirWS));
+                half rim = pow(1.0h - ndv, 3.0h);
+                color += _FrozenTint.rgb * (rim * frozen * _FrozenRimStrength);
+
                 half fogCoord = InitializeInputDataFog(float4(input.positionWS, 1.0), input.fogFactor);
                 color = MixFog(color, fogCoord);
 

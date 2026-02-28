@@ -9,11 +9,14 @@ public class RainAreaEffect : MonoBehaviour
     [Header("Area")]
     [SerializeField, Min(0.1f)] private float radius = 2.5f;
     [SerializeField] private LayerMask flowerLayerMask = ~0;
+    [SerializeField] private LayerMask zombieLayerMask = ~0;
 
     [Header("Healing")]
     [SerializeField, Min(0f)] private float healPerSecond = 2f;
+    [SerializeField, Min(0f)] private float wetDurationRefreshSeconds = 0.25f;
 
     private readonly HashSet<FlowerEntity> flowersInside = new HashSet<FlowerEntity>();
+    private readonly HashSet<ZombieEntity> zombiesInside = new HashSet<ZombieEntity>();
     private SphereCollider sphereCollider;
 
     private void Awake()
@@ -30,6 +33,7 @@ public class RainAreaEffect : MonoBehaviour
     private void OnEnable()
     {
         flowersInside.Clear();
+        zombiesInside.Clear();
     }
 
     private void OnDisable()
@@ -39,16 +43,12 @@ public class RainAreaEffect : MonoBehaviour
 
     private void Update()
     {
-        if (flowersInside.Count == 0 || healPerSecond <= 0f)
+        if (flowersInside.Count == 0 && zombiesInside.Count == 0)
         {
             return;
         }
 
-        float healAmount = healPerSecond * Time.deltaTime;
-        if (healAmount <= 0f)
-        {
-            return;
-        }
+        float healAmount = Mathf.Max(0f, healPerSecond * Time.deltaTime);
 
         // Iterate over a copy because entries can get invalid while objects deactivate.
         FlowerEntity[] snapshot = new FlowerEntity[flowersInside.Count];
@@ -74,19 +74,56 @@ public class RainAreaEffect : MonoBehaviour
                 continue;
             }
 
-            flower.ApplyWater(healAmount);
+            if (wetDurationRefreshSeconds > 0f)
+            {
+                flower.ApplyWet(wetDurationRefreshSeconds);
+            }
+
+            if (healAmount > 0f)
+            {
+                flower.ApplyWater(healAmount);
+            }
+        }
+
+        if (zombiesInside.Count == 0 || wetDurationRefreshSeconds <= 0f)
+        {
+            return;
+        }
+
+        ZombieEntity[] zombieSnapshot = new ZombieEntity[zombiesInside.Count];
+        zombiesInside.CopyTo(zombieSnapshot);
+        for (int i = 0; i < zombieSnapshot.Length; i++)
+        {
+            ZombieEntity zombie = zombieSnapshot[i];
+            if (zombie == null)
+            {
+                RemoveMissingZombies();
+                continue;
+            }
+
+            if (!zombie.gameObject.activeInHierarchy || !zombie.IsAlive)
+            {
+                zombiesInside.Remove(zombie);
+                continue;
+            }
+
+            zombie.ApplyWet(wetDurationRefreshSeconds);
         }
     }
 
     private void OnTriggerEnter(Collider other)
     {
         TryAddFlower(other);
+        TryAddZombie(other);
     }
 
     private void OnTriggerExit(Collider other)
     {
         FlowerEntity flower = other.GetComponentInParent<FlowerEntity>();
         RemoveFlower(flower);
+
+        ZombieEntity zombie = other.GetComponentInParent<ZombieEntity>();
+        RemoveZombie(zombie);
     }
 
     private void TryAddFlower(Collider other)
@@ -143,15 +180,65 @@ public class RainAreaEffect : MonoBehaviour
         }
     }
 
+    private void TryAddZombie(Collider other)
+    {
+        if (!IsLayerAllowed(other.gameObject.layer, zombieLayerMask))
+        {
+            return;
+        }
+
+        ZombieEntity zombie = other.GetComponentInParent<ZombieEntity>();
+        if (zombie == null || !zombie.gameObject.activeInHierarchy)
+        {
+            return;
+        }
+
+        zombiesInside.Add(zombie);
+    }
+
+    private void RemoveZombie(ZombieEntity zombie)
+    {
+        if (zombie == null)
+        {
+            RemoveMissingZombies();
+            return;
+        }
+
+        zombiesInside.Remove(zombie);
+    }
+
+    private void RemoveMissingZombies()
+    {
+        ZombieEntity[] snapshot = new ZombieEntity[zombiesInside.Count];
+        zombiesInside.CopyTo(snapshot);
+
+        for (int i = 0; i < snapshot.Length; i++)
+        {
+            ZombieEntity zombie = snapshot[i];
+            if (zombie != null)
+            {
+                continue;
+            }
+
+            zombiesInside.Remove(zombie);
+        }
+    }
+
     private bool IsLayerAllowed(int layer)
     {
-        return (flowerLayerMask.value & (1 << layer)) != 0;
+        return IsLayerAllowed(layer, flowerLayerMask);
+    }
+
+    private static bool IsLayerAllowed(int layer, LayerMask mask)
+    {
+        return (mask.value & (1 << layer)) != 0;
     }
 
     private void ReleaseAllSuppression()
     {
         if (flowersInside.Count == 0)
         {
+            zombiesInside.Clear();
             return;
         }
 
@@ -169,6 +256,8 @@ public class RainAreaEffect : MonoBehaviour
 
             flower.SetDryOutSuppressed(false);
         }
+
+        zombiesInside.Clear();
     }
 
     private void OnValidate()

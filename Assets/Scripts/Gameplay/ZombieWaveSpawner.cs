@@ -45,8 +45,13 @@ public class ZombieWaveSpawner : MonoBehaviour
     private bool[] waveCompletedFlags;
     private readonly Dictionary<ZombieEntity, int> zombieWaveMap = new Dictionary<ZombieEntity, int>();
     private readonly Dictionary<ZombieEntity, System.Action> zombieDeathHandlers = new Dictionary<ZombieEntity, System.Action>();
+    private int currentWaveIndex = -1;
+    private int completedWaveCount;
 
     public bool IsRunning => spawnRoutine != null;
+    public int TotalWaveCount => waves != null ? waves.Length : 0;
+    public int CurrentWaveNumber => currentWaveIndex >= 0 ? currentWaveIndex + 1 : 0;
+    public int CompletedWaveCount => completedWaveCount;
     public event System.Action AllWavesCompleted;
 
     private void OnEnable()
@@ -263,6 +268,8 @@ public class ZombieWaveSpawner : MonoBehaviour
             System.Array.Clear(waveCompletedFlags, 0, waveCompletedFlags.Length);
         }
 
+        currentWaveIndex = -1;
+        completedWaveCount = 0;
         ConfigureWaveBarsVisibility(waveCount);
         ClearZombieTracking();
     }
@@ -306,6 +313,7 @@ public class ZombieWaveSpawner : MonoBehaviour
             return;
         }
 
+        currentWaveIndex = waveIndex;
         waveSpawnedCounts[waveIndex] = 0;
         waveDefeatedCounts[waveIndex] = 0;
         waveCompletedFlags[waveIndex] = false;
@@ -372,6 +380,11 @@ public class ZombieWaveSpawner : MonoBehaviour
         if (!IsWaveIndexValid(waveIndex))
         {
             return;
+        }
+
+        if (!waveCompletedFlags[waveIndex])
+        {
+            completedWaveCount = Mathf.Min(completedWaveCount + 1, TotalWaveCount);
         }
 
         waveCompletedFlags[waveIndex] = true;
@@ -454,6 +467,7 @@ public class ZombieWaveSpawner : MonoBehaviour
 
     private void HandleAllWavesCompleted()
     {
+        currentWaveIndex = -1;
         for (int i = 0; i < (waves != null ? waves.Length : 0); i++)
         {
             MarkWaveCompleted(i, false);

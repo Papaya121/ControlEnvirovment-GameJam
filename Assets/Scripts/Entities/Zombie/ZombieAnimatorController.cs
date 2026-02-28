@@ -85,6 +85,11 @@ public class ZombieAnimatorController : MonoBehaviour
         {
             zombie.Died -= HandleDeath;
         }
+
+        if (animator != null)
+        {
+            animator.speed = 1f;
+        }
     }
 
     private void Update()
@@ -98,6 +103,7 @@ public class ZombieAnimatorController : MonoBehaviour
         float lerpFactor = 1f - Mathf.Exp(-velocitySmoothing * Time.deltaTime);
         currentVelocityValue = Mathf.Lerp(currentVelocityValue, targetVelocityValue, lerpFactor);
         animator.SetFloat(velocityParamHash, currentVelocityValue);
+        animator.speed = zombie != null ? zombie.CurrentAnimatorSpeedMultiplier : 1f;
     }
 
     public void PlayAttack()
@@ -123,6 +129,7 @@ public class ZombieAnimatorController : MonoBehaviour
             return;
         }
 
+        animator.speed = 1f;
         animator.SetTrigger(deathTriggerHash);
     }
 

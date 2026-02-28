@@ -7,16 +7,19 @@ public class LightningAreaEffect : MonoBehaviour
     [Header("Area")]
     [SerializeField, Min(0.1f)] private float radius = 2.5f;
     [SerializeField] private LayerMask zombieLayerMask = ~0;
+    [SerializeField] private LayerMask flowerLayerMask = ~0;
 
     [Header("Damage")]
     [SerializeField, Min(0f)] private float damage = 30f;
     [SerializeField, Min(0f)] private float damageSpread = 5f;
     [SerializeField] private QueryTriggerInteraction triggerInteraction = QueryTriggerInteraction.Collide;
+    [SerializeField] private bool affectFlowers = true;
 
     [Header("Lifetime")]
     [SerializeField, Min(0f)] private float destroyAfterSeconds = 1.5f;
 
     private readonly HashSet<ZombieEntity> damagedZombies = new HashSet<ZombieEntity>();
+    private readonly HashSet<FlowerEntity> affectedFlowers = new HashSet<FlowerEntity>();
 
     private void OnEnable()
     {
@@ -27,6 +30,7 @@ public class LightningAreaEffect : MonoBehaviour
     public void ApplyDamageOnce()
     {
         damagedZombies.Clear();
+        affectedFlowers.Clear();
         float strikeDamage = ResolveStrikeDamage();
 
         Collider[] hits = Physics.OverlapSphere(transform.position, radius, zombieLayerMask, triggerInteraction);
@@ -49,7 +53,35 @@ public class LightningAreaEffect : MonoBehaviour
                 continue;
             }
 
-            zombie.TakeDamage(strikeDamage);
+            zombie.TakeDamage(zombie.ResolveLightningDamage(strikeDamage));
+        }
+
+        if (!affectFlowers)
+        {
+            return;
+        }
+
+        Collider[] flowerHits = Physics.OverlapSphere(transform.position, radius, flowerLayerMask, triggerInteraction);
+        for (int i = 0; i < flowerHits.Length; i++)
+        {
+            Collider hit = flowerHits[i];
+            if (hit == null)
+            {
+                continue;
+            }
+
+            FlowerEntity flower = hit.GetComponentInParent<FlowerEntity>();
+            if (flower == null || !flower.IsAlive)
+            {
+                continue;
+            }
+
+            if (!affectedFlowers.Add(flower))
+            {
+                continue;
+            }
+
+            flower.ApplyLightningImpact();
         }
     }
 

@@ -1,5 +1,6 @@
 using UnityEngine;
 using UnityEngine.AI;
+using System.Collections.Generic;
 
 [DisallowMultipleComponent]
 [RequireComponent(typeof(NavMeshAgent))]
@@ -139,27 +140,26 @@ public class ZombieNavMeshController : MonoBehaviour
             return;
         }
 
+        float snowMultiplier = zombie != null ? zombie.CurrentMovementSpeedMultiplier : 1f;
+
         if (!useRunSpeedWhenFar)
         {
-            navMeshAgent.speed = walkSpeed;
+            navMeshAgent.speed = walkSpeed * snowMultiplier;
             return;
         }
 
-        navMeshAgent.speed = distanceToTarget > runDistance ? runSpeed : walkSpeed;
+        float baseSpeed = distanceToTarget > runDistance ? runSpeed : walkSpeed;
+        navMeshAgent.speed = baseSpeed * snowMultiplier;
     }
 
     private void FindNearestFlower()
     {
-#if UNITY_2023_1_OR_NEWER
-        FlowerEntity[] flowers = FindObjectsByType<FlowerEntity>(FindObjectsInactive.Exclude, FindObjectsSortMode.None);
-#else
-        FlowerEntity[] flowers = FindObjectsOfType<FlowerEntity>();
-#endif
+        IReadOnlyList<FlowerEntity> flowers = FlowerEntity.ActiveFlowers;
         currentTarget = null;
         float bestDistanceSqr = float.MaxValue;
         Vector3 ownPosition = transform.position;
 
-        for (int i = 0; i < flowers.Length; i++)
+        for (int i = 0; i < flowers.Count; i++)
         {
             FlowerEntity candidate = flowers[i];
             if (candidate == null || !candidate.IsAlive)

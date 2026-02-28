@@ -132,6 +132,8 @@ MonoBehaviour:
   resetHealthOnEnable: 1
   disableObjectOnDeath: 1
   dryOutDamagePerSecond: 1
+  dryLightningDamage: 5
+  wetLightningHeal: 3
 --- !u!1001 &392885547894389382
 PrefabInstance:
   m_ObjectHideFlags: 0

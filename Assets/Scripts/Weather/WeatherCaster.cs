@@ -27,6 +27,12 @@ public class WeatherCaster : MonoBehaviour
     [SerializeField, Min(0f)] private float waterRegenerationPerSecond = 0f;
     [SerializeField, Min(0f)] private float waterRegenDelayAfterRainStop = 2f;
 
+    [Header("Snow")]
+    [SerializeField] private GameObject snowPrefab;
+    [SerializeField] private Vector3 snowSpawnOffset = Vector3.zero;
+    [SerializeField, Min(0f)] private float snowFollowSmoothing = 18f;
+    [SerializeField, Min(0f)] private float snowWaterDrainPerSecond = 12f;
+
     [Header("Lightning")]
     [SerializeField] private GameObject lightningPrefab;
     [SerializeField] private Vector3 lightningSpawnOffset = Vector3.zero;
@@ -39,9 +45,10 @@ public class WeatherCaster : MonoBehaviour
     [Header("Buttons")]
     [SerializeField] private WeatherAbilityButton[] abilityButtons;
 
-    private GameObject activeRainInstance;
-    private bool isRainCasting;
-    private Vector3 rainTargetPosition;
+    private GameObject activeSustainedWeatherInstance;
+    private bool isSustainedWeatherCasting;
+    private WeatherElement activeSustainedWeatherElement;
+    private Vector3 sustainedWeatherTargetPosition;
     private float nextLightningTime;
     private float nextWaterRegenTime;
 
@@ -66,9 +73,9 @@ public class WeatherCaster : MonoBehaviour
     {
         if (GameStateManager.IsGameplayInputBlocked)
         {
-            if (isRainCasting)
+            if (isSustainedWeatherCasting)
             {
-                StopRain();
+                StopSustainedWeather();
             }
 
             UpdateBars(false);
@@ -78,9 +85,9 @@ public class WeatherCaster : MonoBehaviour
         HandleElementHotkeys();
         HandleWeatherInput();
 
-        if (isRainCasting)
+        if (isSustainedWeatherCasting)
         {
-            UpdateRain();
+            UpdateSustainedWeather();
         }
         else
         {
@@ -100,6 +107,10 @@ public class WeatherCaster : MonoBehaviour
         {
             SelectLightning();
         }
+        else if (IsSnowHotkeyPressed())
+        {
+            SelectSnow();
+        }
     }
 
     public void SelectElement(WeatherElement element)
@@ -111,9 +122,9 @@ public class WeatherCaster : MonoBehaviour
         }
 
         selectedElement = element;
-        if (selectedElement != WeatherElement.Rain)
+        if (selectedElement != WeatherElement.Rain && selectedElement != WeatherElement.Snow)
         {
-            StopRain();
+            StopSustainedWeather();
         }
 
         UpdateButtonStates();
@@ -129,6 +140,11 @@ public class WeatherCaster : MonoBehaviour
         SelectElement(WeatherElement.Lightning);
     }
 
+    public void SelectSnow()
+    {
+        SelectElement(WeatherElement.Snow);
+    }
+
     private void HandleWeatherInput()
     {
         bool pressed = IsLeftMousePressedThisFrame();
@@ -137,24 +153,24 @@ public class WeatherCaster : MonoBehaviour
 
         if (released)
         {
-            StopRain();
+            StopSustainedWeather();
         }
 
-        if (selectedElement == WeatherElement.Rain)
+        if (selectedElement == WeatherElement.Rain || selectedElement == WeatherElement.Snow)
         {
             if (pressed && !ShouldBlockPointerInput())
             {
-                TryStartRain();
+                TryStartSustainedWeather();
             }
 
-            if (held && isRainCasting && ShouldBlockPointerInput())
+            if (held && isSustainedWeatherCasting && ShouldBlockPointerInput())
             {
-                StopRain();
+                StopSustainedWeather();
             }
 
-            if (!held && isRainCasting)
+            if (!held && isSustainedWeatherCasting)
             {
-                StopRain();
+                StopSustainedWeather();
             }
 
             return;
@@ -166,9 +182,14 @@ public class WeatherCaster : MonoBehaviour
         }
     }
 
-    private void TryStartRain()
+    private void TryStartSustainedWeather()
     {
-        if (rainPrefab == null || currentWater <= 0f)
+        if (currentWater <= 0f)
+        {
+            return;
+        }
+
+        if (!TryResolveSustainedWeatherPrefab(out GameObject prefab))
         {
             return;
         }
@@ -178,62 +199,87 @@ public class WeatherCaster : MonoBehaviour
             return;
         }
 
-        rainTargetPosition = point + rainSpawnOffset;
-        isRainCasting = true;
+        sustainedWeatherTargetPosition = point + GetSustainedWeatherSpawnOffset();
+        isSustainedWeatherCasting = true;
 
-        if (activeRainInstance == null)
+        if (activeSustainedWeatherInstance == null)
         {
-            activeRainInstance = Instantiate(rainPrefab, rainTargetPosition, Quaternion.identity, effectsParent);
+            activeSustainedWeatherInstance = Instantiate(prefab, sustainedWeatherTargetPosition, Quaternion.identity, effectsParent);
+            activeSustainedWeatherElement = selectedElement;
         }
         else
         {
-            activeRainInstance.SetActive(true);
-            activeRainInstance.transform.position = rainTargetPosition;
+            if (activeSustainedWeatherElement != selectedElement)
+            {
+                Destroy(activeSustainedWeatherInstance);
+                activeSustainedWeatherInstance = Instantiate(prefab, sustainedWeatherTargetPosition, Quaternion.identity, effectsParent);
+                activeSustainedWeatherElement = selectedElement;
+                return;
+            }
+
+            activeSustainedWeatherInstance.SetActive(true);
+            activeSustainedWeatherInstance.transform.position = sustainedWeatherTargetPosition;
         }
     }
 
-    private void UpdateRain()
+    private void UpdateSustainedWeather()
     {
         if (currentWater <= 0f)
         {
-            StopRain();
+            StopSustainedWeather();
+            return;
+        }
+
+        if (!TryResolveSustainedWeatherPrefab(out GameObject prefab))
+        {
+            StopSustainedWeather();
             return;
         }
 
         if (TryGetWorldPoint(out Vector3 point))
         {
-            rainTargetPosition = point + rainSpawnOffset;
+            sustainedWeatherTargetPosition = point + GetSustainedWeatherSpawnOffset();
         }
 
-        if (activeRainInstance == null)
+        if (activeSustainedWeatherInstance == null)
         {
-            activeRainInstance = Instantiate(rainPrefab, rainTargetPosition, Quaternion.identity, effectsParent);
+            activeSustainedWeatherInstance = Instantiate(prefab, sustainedWeatherTargetPosition, Quaternion.identity, effectsParent);
+            activeSustainedWeatherElement = selectedElement;
+        }
+        else if (activeSustainedWeatherElement != selectedElement)
+        {
+            Destroy(activeSustainedWeatherInstance);
+            activeSustainedWeatherInstance = Instantiate(prefab, sustainedWeatherTargetPosition, Quaternion.identity, effectsParent);
+            activeSustainedWeatherElement = selectedElement;
         }
 
-        float lerpFactor = rainFollowSmoothing <= 0f
+        float followSmoothing = GetSustainedWeatherFollowSmoothing();
+        float lerpFactor = followSmoothing <= 0f
             ? 1f
-            : 1f - Mathf.Exp(-rainFollowSmoothing * Time.deltaTime);
-        activeRainInstance.transform.position = Vector3.Lerp(activeRainInstance.transform.position, rainTargetPosition, lerpFactor);
+            : 1f - Mathf.Exp(-followSmoothing * Time.deltaTime);
+        activeSustainedWeatherInstance.transform.position = Vector3.Lerp(activeSustainedWeatherInstance.transform.position, sustainedWeatherTargetPosition, lerpFactor);
 
-        currentWater = Mathf.Max(0f, currentWater - waterDrainPerSecond * Time.deltaTime);
+        currentWater = Mathf.Max(0f, currentWater - GetSustainedWeatherWaterDrainPerSecond() * Time.deltaTime);
         if (currentWater <= 0f)
         {
-            StopRain();
+            StopSustainedWeather();
         }
     }
 
-    private void StopRain()
+    private void StopSustainedWeather()
     {
-        bool hadActiveRain = isRainCasting || activeRainInstance != null;
-        isRainCasting = false;
+        bool hadActiveWeather = isSustainedWeatherCasting || activeSustainedWeatherInstance != null;
+        isSustainedWeatherCasting = false;
 
-        if (activeRainInstance != null)
+        if (activeSustainedWeatherInstance != null)
         {
-            Destroy(activeRainInstance);
-            activeRainInstance = null;
+            Destroy(activeSustainedWeatherInstance);
+            activeSustainedWeatherInstance = null;
         }
 
-        if (hadActiveRain)
+        activeSustainedWeatherElement = selectedElement;
+
+        if (hadActiveWeather)
         {
             nextWaterRegenTime = Time.time + waterRegenDelayAfterRainStop;
         }
@@ -401,6 +447,61 @@ public class WeatherCaster : MonoBehaviour
         return Input.GetKeyDown(KeyCode.Alpha2) || Input.GetKeyDown(KeyCode.Keypad2);
     }
 
+    private bool IsSnowHotkeyPressed()
+    {
+        if (Keyboard.current != null)
+        {
+            if (Keyboard.current.digit3Key.wasPressedThisFrame || Keyboard.current.numpad3Key.wasPressedThisFrame)
+            {
+                return true;
+            }
+        }
+
+        return Input.GetKeyDown(KeyCode.Alpha3) || Input.GetKeyDown(KeyCode.Keypad3);
+    }
+
+    private bool TryResolveSustainedWeatherPrefab(out GameObject prefab)
+    {
+        prefab = selectedElement switch
+        {
+            WeatherElement.Rain => rainPrefab,
+            WeatherElement.Snow => snowPrefab,
+            _ => null
+        };
+
+        return prefab != null;
+    }
+
+    private Vector3 GetSustainedWeatherSpawnOffset()
+    {
+        return selectedElement switch
+        {
+            WeatherElement.Rain => rainSpawnOffset,
+            WeatherElement.Snow => snowSpawnOffset,
+            _ => Vector3.zero
+        };
+    }
+
+    private float GetSustainedWeatherFollowSmoothing()
+    {
+        return selectedElement switch
+        {
+            WeatherElement.Rain => rainFollowSmoothing,
+            WeatherElement.Snow => snowFollowSmoothing,
+            _ => 0f
+        };
+    }
+
+    private float GetSustainedWeatherWaterDrainPerSecond()
+    {
+        return selectedElement switch
+        {
+            WeatherElement.Rain => waterDrainPerSecond,
+            WeatherElement.Snow => snowWaterDrainPerSecond,
+            _ => 0f
+        };
+    }
+
     private bool ShouldBlockPointerInput()
     {
         return blockInputWhenPointerOverUI && EventSystem.current != null && EventSystem.current.IsPointerOverGameObject();
@@ -449,5 +550,7 @@ public class WeatherCaster : MonoBehaviour
         waterMax = Mathf.Max(0f, waterMax);
         currentWater = Mathf.Clamp(currentWater, 0f, waterMax);
         lightningCooldown = Mathf.Max(0.01f, lightningCooldown);
+        snowFollowSmoothing = Mathf.Max(0f, snowFollowSmoothing);
+        snowWaterDrainPerSecond = Mathf.Max(0f, snowWaterDrainPerSecond);
     }
 }

@@ -51,6 +51,8 @@ public class GameStateManager : MonoBehaviour
     public static bool IsGameplayInputBlocked { get; private set; }
 
     public GameFlowState CurrentState => currentState;
+    public int TotalFlowerCount => trackedFlowers != null ? trackedFlowers.Length : 0;
+    public int AliveFlowerCount => CountAliveFlowers();
     public event Action<GameFlowState> StateChanged;
 
     private void Awake()
@@ -343,21 +345,27 @@ public class GameStateManager : MonoBehaviour
 
     private bool AreAnyFlowersAlive()
     {
+        return CountAliveFlowers() > 0;
+    }
+
+    private int CountAliveFlowers()
+    {
         if (trackedFlowers == null || trackedFlowers.Length == 0)
         {
-            return false;
+            return 0;
         }
 
+        int aliveCount = 0;
         for (int i = 0; i < trackedFlowers.Length; i++)
         {
             FlowerEntity flower = trackedFlowers[i];
             if (flower != null && flower.IsAlive)
             {
-                return true;
+                aliveCount++;
             }
         }
 
-        return false;
+        return aliveCount;
     }
 
     private bool TryGetNextLevel(out string sceneName, out int buildIndex)
