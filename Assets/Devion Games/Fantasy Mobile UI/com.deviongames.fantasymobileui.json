@@ -1,0 +1,46 @@
+{
+    "name": "Fantasy Mobile UI",
+    "id": "com.deviongames.fantasymobileui",
+    "assetPath":"Assets/Devion Games/Fantasy Mobile UI",
+    "version": "1.0.3",
+    "unityVersion": "2019.4.10",
+    "downloadPath": "",
+    "assetStore": "https://assetstore.unity.com/packages/2d/gui/fantasy-mobile-ui-16758",
+    "author": "Konstantin Janson",
+    "email": "support@unitycoding.com",
+    "description": "Customizable mobile GUI interface, containing many elements to create a full mobile game.",
+    "documentation": "https://deviongames.com/fantasy-mobile-ui/",
+    "dependencies": 
+    [
+        "com.deviongames.utilities",
+        "com.deviongames.ui"
+    ],
+    "changelogs": 
+    [
+        {
+            "version": "1.0.1",
+            "changes": 
+            [
+                "Updated Scripts"
+            ]
+        }, 
+        {
+            "version": "1.0.2",
+            "changes": 
+            [
+                "Updated to Devion Games website.",
+                "Changed asset path from Unitycoding/Package to Devion Games/Package",
+                "Updated Documentation"
+            ]
+        },
+        {
+            "version": "1.0.3",
+            "changes": 
+            [
+               "UI Widgets update to version 1.1.1",
+               "Utilities update to version 1.1.1",
+               "Module Manager update to version 1.0.4"
+            ]
+        }
+    ]
+}
