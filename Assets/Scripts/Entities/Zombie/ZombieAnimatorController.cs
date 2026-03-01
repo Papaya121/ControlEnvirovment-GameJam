@@ -27,6 +27,7 @@ public class ZombieAnimatorController : MonoBehaviour
     private int attackTriggerHash;
     private int deathTriggerHash;
     private float currentVelocityValue;
+    private bool deathPlayed;
 
     private void Awake()
     {
@@ -73,6 +74,8 @@ public class ZombieAnimatorController : MonoBehaviour
 
     private void OnEnable()
     {
+        deathPlayed = false;
+
         if (zombie != null)
         {
             zombie.Died += HandleDeath;
@@ -116,6 +119,18 @@ public class ZombieAnimatorController : MonoBehaviour
         animator.SetTrigger(attackTriggerHash);
     }
 
+    public void PlayDeath()
+    {
+        if (animator == null || deathPlayed)
+        {
+            return;
+        }
+
+        deathPlayed = true;
+        animator.speed = 1f;
+        animator.SetTrigger(deathTriggerHash);
+    }
+
     // Called from Animation Event with exact function name: AttackEvent
     public void AttackEvent()
     {
@@ -124,13 +139,7 @@ public class ZombieAnimatorController : MonoBehaviour
 
     private void HandleDeath()
     {
-        if (animator == null)
-        {
-            return;
-        }
-
-        animator.speed = 1f;
-        animator.SetTrigger(deathTriggerHash);
+        PlayDeath();
     }
 
     private float ResolveVelocityValue()

@@ -9731,7 +9731,7 @@ MonoBehaviour:
   zombieLayerMask:
     serializedVersion: 2
     m_Bits: 256
-  slowDurationRefreshSeconds: 0.25
+  slowDurationRefreshSeconds: 2
   movementSpeedMultiplier: 0.6
   animatorSpeedMultiplier: 0.7
 --- !u!1001 &4024137167080496143

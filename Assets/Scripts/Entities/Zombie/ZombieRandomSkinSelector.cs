@@ -6,11 +6,17 @@ public class ZombieRandomSkinSelector : MonoBehaviour
     [Header("Skins")]
     [SerializeField] private GameObject[] skins;
     [SerializeField] private bool avoidImmediateRepeat = true;
+    [SerializeField] private bool applyOnEnable = false;
 
     private int lastSelectedIndex = -1;
 
     private void OnEnable()
     {
+        if (!applyOnEnable)
+        {
+            return;
+        }
+
         ApplyRandomSkin();
     }
 
