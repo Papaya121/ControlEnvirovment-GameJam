@@ -296,10 +296,10 @@ MonoBehaviour:
   targetSearchInterval: 0.5
   repathInterval: 0.25
   attackDistance: 1.8
-  useRunSpeedWhenFar: 0
   walkSpeed: 0.5
   runSpeed: 3
-  runDistance: 150
+  isRunner: 0
+  stopRunningDistanceToTarget: 4
   zombie: {fileID: 2120022072410787607}
   navMeshAgent: {fileID: 3906582532496734359}
   animatorController: {fileID: 6905137702349717913}

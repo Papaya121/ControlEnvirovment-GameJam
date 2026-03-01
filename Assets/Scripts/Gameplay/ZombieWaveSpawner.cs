@@ -14,6 +14,7 @@ public class ZombieWaveSpawner : MonoBehaviour
         [Min(0f)] public float spawnInterval = 0.6f;
         [Min(0)] public int maxAliveAtOnce = 0;
         public bool waitUntilWaveCleared = true;
+        [Range(0f, 100f)] public float runnerSpawnChancePercent = 25f;
     }
 
     [Header("References")]
@@ -99,6 +100,11 @@ public class ZombieWaveSpawner : MonoBehaviour
 
     private IEnumerator SpawnLoop()
     {
+        while (GameStateManager.IsAnyIntroActive)
+        {
+            yield return null;
+        }
+
         if (startDelay > 0f)
         {
             yield return new WaitForSeconds(startDelay);
@@ -111,6 +117,11 @@ public class ZombieWaveSpawner : MonoBehaviour
 
             for (int waveIndex = 0; waveIndex < waves.Length; waveIndex++)
             {
+                while (GameStateManager.IsAnyIntroActive)
+                {
+                    yield return null;
+                }
+
                 ZombieWave wave = waves[waveIndex];
                 if (wave == null || wave.zombieCount <= 0)
                 {
@@ -128,6 +139,11 @@ public class ZombieWaveSpawner : MonoBehaviour
                 int spawned = 0;
                 while (spawned < wave.zombieCount)
                 {
+                    while (GameStateManager.IsAnyIntroActive)
+                    {
+                        yield return null;
+                    }
+
                     if (wave.maxAliveAtOnce > 0)
                     {
                         while (zombiePool.ActiveCount >= wave.maxAliveAtOnce)
@@ -138,6 +154,9 @@ public class ZombieWaveSpawner : MonoBehaviour
 
                     if (TrySpawnZombie(out ZombieEntity spawnedZombie))
                     {
+                        float runnerChance01 = Mathf.Clamp01(wave.runnerSpawnChancePercent * 0.01f);
+                        bool isRunner = Random.value < runnerChance01;
+                        spawnedZombie.ConfigureRunner(isRunner);
                         spawned++;
                         RegisterZombieForWave(spawnedZombie, waveIndex);
                     }
@@ -270,16 +289,21 @@ public class ZombieWaveSpawner : MonoBehaviour
 
         currentWaveIndex = -1;
         completedWaveCount = 0;
-        ConfigureWaveBarsVisibility(waveCount);
+        ConfigureWaveBarsVisibility();
         ClearZombieTracking();
     }
 
-    private void ConfigureWaveBarsVisibility(int waveCount)
+    private void ConfigureWaveBarsVisibility()
     {
         if (waveBars == null)
         {
             return;
         }
+
+        int waveCount = waves != null ? waves.Length : 0;
+        int revealedWaveCount = hideUnusedWaveBars
+            ? Mathf.Clamp(completedWaveCount + 1, 0, waveCount)
+            : waveCount;
 
         for (int i = 0; i < waveBars.Length; i++)
         {
@@ -289,7 +313,7 @@ public class ZombieWaveSpawner : MonoBehaviour
                 continue;
             }
 
-            bool shouldBeVisible = !hideUnusedWaveBars || i < waveCount;
+            bool shouldBeVisible = !hideUnusedWaveBars || i < revealedWaveCount;
             if (bar.gameObject.activeSelf != shouldBeVisible)
             {
                 bar.gameObject.SetActive(shouldBeVisible);
@@ -389,6 +413,7 @@ public class ZombieWaveSpawner : MonoBehaviour
 
         waveCompletedFlags[waveIndex] = true;
         SetWaveBarValue(waveIndex, 1f, instant);
+        ConfigureWaveBarsVisibility();
     }
 
     private void SetWaveBarValue(int waveIndex, float normalized, bool instant)

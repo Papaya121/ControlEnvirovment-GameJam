@@ -1,6 +1,7 @@
 using System;
 using System.Collections;
 using UnityEngine;
+using UnityEngine.Serialization;
 using UnityEngine.InputSystem;
 using UnityEngine.SceneManagement;
 
@@ -9,6 +10,7 @@ public class GameStateManager : MonoBehaviour
 {
     public enum GameFlowState
     {
+        Intro = -1,
         Playing = 0,
         Paused = 1,
         Victory = 2,
@@ -28,7 +30,8 @@ public class GameStateManager : MonoBehaviour
 
     [Header("End States")]
     [SerializeField] private bool freezeTimeOnVictoryOrDefeat = true;
-    [SerializeField] private bool checkDefeatWhenAllFlowersDead = true;
+    [FormerlySerializedAs("checkDefeatWhenAllFlowersDead")]
+    [SerializeField] private bool checkDefeatWhenAnyFlowerDies = true;
     [SerializeField, Min(0f)] private float victoryDelaySeconds = 1f;
     [SerializeField, Min(0f)] private float defeatDelaySeconds = 1f;
     [SerializeField] private bool useUnscaledEndStateDelay = true;
@@ -37,6 +40,16 @@ public class GameStateManager : MonoBehaviour
     [SerializeField] private GameObject pauseScreen;
     [SerializeField] private GameObject victoryScreen;
     [SerializeField] private GameObject defeatScreen;
+
+    [Header("Level Thanks")]
+    [SerializeField] private bool showLevelThanks;
+    [SerializeField] private GameObject levelThanksScreen;
+
+    [Header("Level Intro")]
+    [FormerlySerializedAs("showFirstLevelIntro")]
+    [SerializeField] private bool showLevelIntro = true;
+    [FormerlySerializedAs("firstLevelIntroScreen")]
+    [SerializeField] private GameObject levelIntroScreen;
 
     [Header("Levels")]
     [SerializeField, Min(1)] private int totalLevels = 5;
@@ -47,8 +60,16 @@ public class GameStateManager : MonoBehaviour
     private GameFlowState currentState = GameFlowState.Playing;
     private Coroutine pendingEndStateRoutine;
     private GameFlowState? pendingEndState;
+    private bool isLevelIntroActive;
+    private bool isLevelThanksActive;
+    private bool isRegisteredGameplayBlock;
+    private bool isRegisteredIntroState;
+
+    private static int gameplayBlockersCount;
+    private static int introStateCount;
 
     public static bool IsGameplayInputBlocked { get; private set; }
+    public static bool IsAnyIntroActive => introStateCount > 0;
 
     public GameFlowState CurrentState => currentState;
     public int TotalFlowerCount => trackedFlowers != null ? trackedFlowers.Length : 0;
@@ -63,7 +84,8 @@ public class GameStateManager : MonoBehaviour
         }
 
         ResolveFlowers();
-        SetState(GameFlowState.Playing, true);
+        InitializeLevelIntro();
+        SetState(isLevelIntroActive ? GameFlowState.Intro : GameFlowState.Playing, true);
     }
 
     private void OnEnable()
@@ -71,7 +93,7 @@ public class GameStateManager : MonoBehaviour
         SubscribeWaveSpawner();
         SubscribeFlowers();
 
-        if (autoStartWaves && waveSpawner != null && !waveSpawner.IsRunning)
+        if (autoStartWaves && waveSpawner != null && !waveSpawner.IsRunning && currentState == GameFlowState.Playing && !IsAnyIntroActive)
         {
             waveSpawner.StartSpawning();
         }
@@ -82,16 +104,28 @@ public class GameStateManager : MonoBehaviour
         UnsubscribeWaveSpawner();
         UnsubscribeFlowers();
         ClearPendingEndState();
+        SetGameplayBlockedByThis(false);
+        SetIntroStateByThis(false);
 
-        if (currentState != GameFlowState.Victory && currentState != GameFlowState.Defeat)
+        if (!IsGameplayInputBlocked && currentState != GameFlowState.Victory && currentState != GameFlowState.Defeat)
         {
             Time.timeScale = 1f;
-            IsGameplayInputBlocked = false;
         }
     }
 
     private void Update()
     {
+        if (IsAnyIntroActive)
+        {
+            if (Time.timeScale != 0f)
+            {
+                Time.timeScale = 0f;
+            }
+
+            SetScreenState(pauseScreen, false);
+            return;
+        }
+
         if (!allowPause)
         {
             return;
@@ -112,6 +146,11 @@ public class GameStateManager : MonoBehaviour
 
     public void TogglePause()
     {
+        if (IsAnyIntroActive)
+        {
+            return;
+        }
+
         if (currentState == GameFlowState.Playing)
         {
             SetState(GameFlowState.Paused);
@@ -126,6 +165,11 @@ public class GameStateManager : MonoBehaviour
 
     public void PauseGame()
     {
+        if (IsAnyIntroActive)
+        {
+            return;
+        }
+
         if (currentState == GameFlowState.Playing)
         {
             SetState(GameFlowState.Paused);
@@ -134,10 +178,57 @@ public class GameStateManager : MonoBehaviour
 
     public void ResumeGame()
     {
+        if (IsAnyIntroActive)
+        {
+            return;
+        }
+
         if (currentState == GameFlowState.Paused)
         {
             SetState(GameFlowState.Playing);
         }
+    }
+
+    public void CloseTutorial()
+    {
+        if (currentState != GameFlowState.Intro)
+        {
+            return;
+        }
+
+        isLevelIntroActive = false;
+        SetState(GameFlowState.Playing);
+
+        if (autoStartWaves && waveSpawner != null && !waveSpawner.IsRunning && !IsAnyIntroActive)
+        {
+            waveSpawner.StartSpawning();
+        }
+    }
+
+    public void StartLevelFromIntro()
+    {
+        if (IsAnyIntroActive)
+        {
+#if UNITY_2023_1_OR_NEWER
+            GameStateManager[] managers = FindObjectsByType<GameStateManager>(FindObjectsInactive.Include, FindObjectsSortMode.None);
+#else
+            GameStateManager[] managers = FindObjectsOfType<GameStateManager>(true);
+#endif
+            for (int i = 0; i < managers.Length; i++)
+            {
+                GameStateManager manager = managers[i];
+                if (manager == null)
+                {
+                    continue;
+                }
+
+                manager.CloseTutorial();
+            }
+
+            return;
+        }
+
+        CloseTutorial();
     }
 
     public void RestartCurrentLevel()
@@ -145,6 +236,35 @@ public class GameStateManager : MonoBehaviour
         Time.timeScale = 1f;
         Scene activeScene = SceneManager.GetActiveScene();
         SceneManager.LoadScene(activeScene.buildIndex);
+    }
+
+    public void CloseGame()
+    {
+        Time.timeScale = 1f;
+#if UNITY_EDITOR
+        UnityEditor.EditorApplication.isPlaying = false;
+#else
+        Application.Quit();
+#endif
+    }
+
+    public void StartFromFirstLevel()
+    {
+        if (!TryGetFirstLevel(out string firstSceneName, out int firstBuildIndex))
+        {
+            Debug.LogWarning("First level is not configured. Restarting current level.", this);
+            RestartCurrentLevel();
+            return;
+        }
+
+        Time.timeScale = 1f;
+        if (!string.IsNullOrEmpty(firstSceneName))
+        {
+            SceneManager.LoadScene(firstSceneName);
+            return;
+        }
+
+        SceneManager.LoadScene(firstBuildIndex);
     }
 
     public void LoadNextLevel()
@@ -196,9 +316,11 @@ public class GameStateManager : MonoBehaviour
         }
 
         currentState = newState;
+        isLevelThanksActive = newState == GameFlowState.Victory && ShouldShowLevelThanks();
+        SetIntroStateByThis(newState == GameFlowState.Intro);
+        SetGameplayBlockedByThis(newState != GameFlowState.Playing);
         ApplyTimeScaleForState(newState);
         UpdateScreensForState(newState);
-        IsGameplayInputBlocked = newState != GameFlowState.Playing;
 
         StateChanged?.Invoke(newState);
         Debug.Log($"Game state changed to {newState}", this);
@@ -208,6 +330,9 @@ public class GameStateManager : MonoBehaviour
     {
         switch (state)
         {
+            case GameFlowState.Intro:
+                Time.timeScale = 0f;
+                break;
             case GameFlowState.Playing:
                 Time.timeScale = 1f;
                 break;
@@ -223,8 +348,10 @@ public class GameStateManager : MonoBehaviour
 
     private void UpdateScreensForState(GameFlowState state)
     {
+        SetScreenState(levelIntroScreen, state == GameFlowState.Intro && isLevelIntroActive);
         SetScreenState(pauseScreen, state == GameFlowState.Paused);
-        SetScreenState(victoryScreen, state == GameFlowState.Victory);
+        SetScreenState(victoryScreen, state == GameFlowState.Victory && !isLevelThanksActive);
+        SetScreenState(levelThanksScreen, state == GameFlowState.Victory && isLevelThanksActive);
         SetScreenState(defeatScreen, state == GameFlowState.Defeat);
     }
 
@@ -253,6 +380,46 @@ public class GameStateManager : MonoBehaviour
 #else
         trackedFlowers = FindObjectsOfType<FlowerEntity>(true);
 #endif
+    }
+
+    private void InitializeLevelIntro()
+    {
+        isLevelIntroActive = ShouldShowLevelIntro();
+
+        if (!isLevelIntroActive)
+        {
+            SetScreenState(levelIntroScreen, false);
+        }
+    }
+
+    private bool ShouldShowLevelIntro()
+    {
+        if (!showLevelIntro)
+        {
+            return false;
+        }
+
+        if (levelIntroScreen == null)
+        {
+            return false;
+        }
+
+        return true;
+    }
+
+    private bool ShouldShowLevelThanks()
+    {
+        if (!showLevelThanks)
+        {
+            return false;
+        }
+
+        if (levelThanksScreen == null)
+        {
+            return false;
+        }
+
+        return true;
     }
 
     private void SubscribeWaveSpawner()
@@ -327,7 +494,7 @@ public class GameStateManager : MonoBehaviour
 
     private void HandleFlowerDied()
     {
-        if (!checkDefeatWhenAllFlowersDead)
+        if (!checkDefeatWhenAnyFlowerDies)
         {
             return;
         }
@@ -337,15 +504,7 @@ public class GameStateManager : MonoBehaviour
             return;
         }
 
-        if (!AreAnyFlowersAlive())
-        {
-            RequestEndState(GameFlowState.Defeat, defeatDelaySeconds);
-        }
-    }
-
-    private bool AreAnyFlowersAlive()
-    {
-        return CountAliveFlowers() > 0;
+        RequestEndState(GameFlowState.Defeat, defeatDelaySeconds);
     }
 
     private int CountAliveFlowers()
@@ -415,6 +574,26 @@ public class GameStateManager : MonoBehaviour
         return false;
     }
 
+    private bool TryGetFirstLevel(out string sceneName, out int buildIndex)
+    {
+        sceneName = null;
+        buildIndex = -1;
+
+        if (levelSceneNames != null && levelSceneNames.Length > 0 && !string.IsNullOrWhiteSpace(levelSceneNames[0]))
+        {
+            sceneName = levelSceneNames[0];
+            return true;
+        }
+
+        if (firstLevelBuildIndex >= 0 && firstLevelBuildIndex < SceneManager.sceneCountInBuildSettings)
+        {
+            buildIndex = firstLevelBuildIndex;
+            return true;
+        }
+
+        return false;
+    }
+
     private bool IsPausePressedThisFrame()
     {
         if (Keyboard.current != null)
@@ -429,9 +608,50 @@ public class GameStateManager : MonoBehaviour
         return Input.GetKeyDown(KeyCode.Escape);
     }
 
+    private void SetGameplayBlockedByThis(bool shouldBlock)
+    {
+        if (shouldBlock)
+        {
+            if (!isRegisteredGameplayBlock)
+            {
+                gameplayBlockersCount++;
+                isRegisteredGameplayBlock = true;
+            }
+        }
+        else if (isRegisteredGameplayBlock)
+        {
+            gameplayBlockersCount = Mathf.Max(0, gameplayBlockersCount - 1);
+            isRegisteredGameplayBlock = false;
+        }
+
+        IsGameplayInputBlocked = gameplayBlockersCount > 0;
+    }
+
+    private void SetIntroStateByThis(bool isInIntro)
+    {
+        if (isInIntro)
+        {
+            if (!isRegisteredIntroState)
+            {
+                introStateCount++;
+                isRegisteredIntroState = true;
+            }
+        }
+        else if (isRegisteredIntroState)
+        {
+            introStateCount = Mathf.Max(0, introStateCount - 1);
+            isRegisteredIntroState = false;
+        }
+    }
+
     private void RequestEndState(GameFlowState targetState, float delaySeconds)
     {
         if (targetState != GameFlowState.Victory && targetState != GameFlowState.Defeat)
+        {
+            return;
+        }
+
+        if (IsAnyIntroActive)
         {
             return;
         }

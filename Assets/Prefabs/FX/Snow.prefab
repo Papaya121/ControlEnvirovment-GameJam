@@ -9643,6 +9643,7 @@ GameObject:
   - component: {fileID: 527281946769709639}
   - component: {fileID: 9154308431612822290}
   - component: {fileID: 5247804607905876019}
+  - component: {fileID: 2766458339541374368}
   m_Layer: 0
   m_Name: Snow
   m_TagString: Untagged
@@ -9734,6 +9735,27 @@ MonoBehaviour:
   slowDurationRefreshSeconds: 2
   movementSpeedMultiplier: 0.6
   animatorSpeedMultiplier: 0.7
+--- !u!114 &2766458339541374368
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 8503460834208878393}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 11b192cd5230446719000d9b688b10fe, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::RainAreaEffect
+  radius: 1.6
+  flowerLayerMask:
+    serializedVersion: 2
+    m_Bits: 128
+  zombieLayerMask:
+    serializedVersion: 2
+    m_Bits: 256
+  healPerSecond: 1.2
+  wetDurationRefreshSeconds: 2
 --- !u!1001 &4024137167080496143
 PrefabInstance:
   m_ObjectHideFlags: 0

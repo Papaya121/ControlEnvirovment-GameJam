@@ -114,15 +114,24 @@ public abstract class LivingEntityBase : EntityBase, IHealth
     {
     }
 
-    protected virtual void HandleDeath()
+    protected void NotifyDied()
     {
         OnDeath();
         Died?.Invoke();
+    }
 
+    protected void DisableObjectOnDeathIfNeeded()
+    {
         if (disableObjectOnDeath)
         {
             gameObject.SetActive(false);
         }
+    }
+
+    protected virtual void HandleDeath()
+    {
+        NotifyDied();
+        DisableObjectOnDeathIfNeeded();
     }
 
     protected virtual void RaiseHealthChanged()

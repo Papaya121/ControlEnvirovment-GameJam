@@ -123,11 +123,11 @@ MonoBehaviour:
   currentWater: 100
   waterDrainPerSecond: 10
   waterRegenerationPerSecond: 5
-  waterRegenDelayAfterRainStop: 2
+  waterRegenDelayAfterRainStop: 1
   snowPrefab: {fileID: 8503460834208878393, guid: fbed3659106bc114182e8aecdb2055da, type: 3}
   snowSpawnOffset: {x: 0, y: 0, z: 0}
   snowFollowSmoothing: 18
-  snowWaterDrainPerSecond: 12
+  snowWaterDrainPerSecond: 6
   lightningPrefab: {fileID: 5644452002509239053, guid: cc9da01bb1ad6402381c51f0d85480f9, type: 3}
   lightningSpawnOffset: {x: 0, y: 0, z: 0}
   lightningCooldown: 2
@@ -217,6 +217,7 @@ MonoBehaviour:
     spawnInterval: 3
     maxAliveAtOnce: 4
     waitUntilWaveCleared: 1
+    runnerSpawnChancePercent: 25
   waveBars:
   - {fileID: 0}
   hideUnusedWaveBars: 1
@@ -310,15 +311,24 @@ MonoBehaviour:
   pauseKey: 60
   freezeTimeOnPause: 1
   freezeTimeOnVictoryOrDefeat: 1
-  checkDefeatWhenAllFlowersDead: 1
+  checkDefeatWhenAnyFlowerDies: 1
   victoryDelaySeconds: 1
   defeatDelaySeconds: 1
   useUnscaledEndStateDelay: 1
   pauseScreen: {fileID: 0}
   victoryScreen: {fileID: 0}
   defeatScreen: {fileID: 0}
-  totalLevels: 1
-  levelSceneNames: []
+  showLevelThanks: 0
+  levelThanksScreen: {fileID: 0}
+  showLevelIntro: 1
+  levelIntroScreen: {fileID: 0}
+  totalLevels: 5
+  levelSceneNames:
+  - Level 1
+  - Level 2
+  - Level 3
+  - Level 4
+  - Level 5
   useBuildIndexProgression: 1
   firstLevelBuildIndex: 0
 --- !u!1 &6281277531775693861

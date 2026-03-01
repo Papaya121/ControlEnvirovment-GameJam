@@ -71,19 +71,19 @@ public class GameplayObjectiveHud : MonoBehaviour
         }
 
         builder.Clear();
-        builder.AppendLine("Goal: Survive all waves and keep at least one flower alive.");
+        // builder.AppendLine("Цель: Выжить все волны и оставить все цветы в целости и сохраности.");
 
         if (gameStateManager != null)
         {
-            builder.Append("State: ");
-            builder.Append(gameStateManager.CurrentState);
-            builder.AppendLine();
+            // builder.Append("State: ");
+            // builder.Append(gameStateManager.CurrentState);
+            // builder.AppendLine();
 
-            builder.Append("Flowers: ");
-            builder.Append(gameStateManager.AliveFlowerCount);
-            builder.Append("/");
-            builder.Append(gameStateManager.TotalFlowerCount);
-            builder.AppendLine();
+            // builder.Append("Flowers: ");
+            // builder.Append(gameStateManager.AliveFlowerCount);
+            // builder.Append("/");
+            // builder.Append(gameStateManager.TotalFlowerCount);
+            // builder.AppendLine();
         }
 
         if (waveSpawner != null && waveSpawner.TotalWaveCount > 0)
@@ -92,20 +92,10 @@ public class GameplayObjectiveHud : MonoBehaviour
             int totalWaves = waveSpawner.TotalWaveCount;
             int completedWaves = waveSpawner.CompletedWaveCount;
 
-            if (currentWave > 0)
-            {
-                builder.Append("Wave: ");
-                builder.Append(currentWave);
-                builder.Append("/");
-                builder.Append(totalWaves);
-            }
-            else
-            {
-                builder.Append("Waves cleared: ");
-                builder.Append(completedWaves);
-                builder.Append("/");
-                builder.Append(totalWaves);
-            }
+            builder.Append("Волна: ");
+            builder.Append(currentWave);
+            builder.Append("/");
+            builder.Append(totalWaves);
 
             builder.AppendLine();
         }

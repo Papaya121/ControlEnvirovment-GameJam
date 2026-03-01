@@ -20,17 +20,14 @@ public class ZombiePoolMember : MonoBehaviour
 
     private void OnEnable()
     {
-        if (zombie != null)
-        {
-            zombie.Died += HandleDeath;
-        }
+        IsInPool = false;
     }
 
     private void OnDisable()
     {
-        if (zombie != null)
+        if (!IsInPool)
         {
-            zombie.Died -= HandleDeath;
+            Owner?.Release(this);
         }
     }
 
@@ -49,11 +46,6 @@ public class ZombiePoolMember : MonoBehaviour
     internal void MarkReturned()
     {
         IsInPool = true;
-    }
-
-    private void HandleDeath()
-    {
-        Owner?.Release(this);
     }
 
     private void Reset()

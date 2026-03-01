@@ -14,6 +14,11 @@ public class FlowerEntity : LivingEntityBase
 
     private void Update()
     {
+        if (GameStateManager.IsGameplayInputBlocked)
+        {
+            return;
+        }
+
         if (!IsAlive || dryOutDamagePerSecond <= 0f || IsDryOutSuppressed)
         {
             return;

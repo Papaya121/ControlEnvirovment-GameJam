@@ -183,6 +183,11 @@ public class ZombieEntity : LivingEntityBase
         return ApplyAttack(target);
     }
 
+    public void ConfigureRunner(bool isRunner)
+    {
+        navMeshController?.ConfigureRunner(isRunner);
+    }
+
     public void ApplyWet(float durationSeconds)
     {
         if (!IsAlive || durationSeconds <= 0f)
@@ -293,6 +298,7 @@ public class ZombieEntity : LivingEntityBase
         }
 
         deathSequenceStarted = true;
+        NotifyDied();
         deathSequenceRoutine = StartCoroutine(DeathSequenceRoutine());
     }
 
@@ -344,7 +350,7 @@ public class ZombieEntity : LivingEntityBase
         }
 
         deathSequenceRoutine = null;
-        base.HandleDeath();
+        DisableObjectOnDeathIfNeeded();
     }
 
     private void OnDisable()

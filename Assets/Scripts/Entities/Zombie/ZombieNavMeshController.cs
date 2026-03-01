@@ -15,10 +15,12 @@ public class ZombieNavMeshController : MonoBehaviour
     [SerializeField, Min(0.1f)] private float attackDistance = 1.8f;
 
     [Header("Speed")]
-    [SerializeField] private bool useRunSpeedWhenFar = true;
     [SerializeField, Min(0.1f)] private float walkSpeed = 1.8f;
     [SerializeField, Min(0.1f)] private float runSpeed = 3.6f;
-    [SerializeField, Min(0f)] private float runDistance = 8f;
+
+    [Header("Runner")]
+    [SerializeField] private bool isRunner;
+    [SerializeField, Min(0f)] private float stopRunningDistanceToTarget = 2f;
 
     [Header("References")]
     [SerializeField] private ZombieEntity zombie;
@@ -56,6 +58,12 @@ public class ZombieNavMeshController : MonoBehaviour
 
     private void Update()
     {
+        if (GameStateManager.IsGameplayInputBlocked)
+        {
+            StopMovement();
+            return;
+        }
+
         if (zombie == null || !zombie.IsAlive)
         {
             StopMovement();
@@ -141,15 +149,13 @@ public class ZombieNavMeshController : MonoBehaviour
         }
 
         float snowMultiplier = zombie != null ? zombie.CurrentMovementSpeedMultiplier : 1f;
-
-        if (!useRunSpeedWhenFar)
-        {
-            navMeshAgent.speed = walkSpeed * snowMultiplier;
-            return;
-        }
-
-        float baseSpeed = distanceToTarget > runDistance ? runSpeed : walkSpeed;
+        float baseSpeed = isRunner && distanceToTarget > stopRunningDistanceToTarget ? runSpeed : walkSpeed;
         navMeshAgent.speed = baseSpeed * snowMultiplier;
+    }
+
+    public void ConfigureRunner(bool shouldRun)
+    {
+        isRunner = shouldRun;
     }
 
     private void FindNearestFlower()
@@ -185,8 +191,19 @@ public class ZombieNavMeshController : MonoBehaviour
         animatorController = GetComponentInChildren<ZombieAnimatorController>(true);
     }
 
+    private void OnValidate()
+    {
+        stopRunningDistanceToTarget = Mathf.Max(0f, stopRunningDistanceToTarget);
+    }
+
     public void ApplyAttackFromAnimationEvent()
     {
+        if (GameStateManager.IsGameplayInputBlocked)
+        {
+            attackTarget = null;
+            return;
+        }
+
         if (zombie == null || !zombie.IsAlive)
         {
             attackTarget = null;

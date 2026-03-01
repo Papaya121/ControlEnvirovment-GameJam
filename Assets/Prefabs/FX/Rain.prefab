@@ -19408,7 +19408,7 @@ MonoBehaviour:
   zombieLayerMask:
     serializedVersion: 2
     m_Bits: 256
-  healPerSecond: 2
+  healPerSecond: 6
   wetDurationRefreshSeconds: 2
 --- !u!1 &8604969668989913604
 GameObject:

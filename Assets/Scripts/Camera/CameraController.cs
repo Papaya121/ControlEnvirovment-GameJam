@@ -69,6 +69,11 @@ public class CameraController : MonoBehaviour
 
     private void Update()
     {
+        if (GameStateManager.IsGameplayInputBlocked)
+        {
+            return;
+        }
+
         if (moveAction == null)
         {
             return;
