@@ -4289,9 +4289,17 @@ PrefabInstance:
       value: 
       objectReference: {fileID: 1900221503}
     - target: {fileID: 8627335078782122898, guid: 3c9c1b1af8039474395264e45ae2ed78, type: 3}
+      propertyPath: showLevelThanks
+      value: 1
+      objectReference: {fileID: 0}
+    - target: {fileID: 8627335078782122898, guid: 3c9c1b1af8039474395264e45ae2ed78, type: 3}
       propertyPath: levelIntroScreen
       value: 
       objectReference: {fileID: 1090564550}
+    - target: {fileID: 8627335078782122898, guid: 3c9c1b1af8039474395264e45ae2ed78, type: 3}
+      propertyPath: levelThanksScreen
+      value: 
+      objectReference: {fileID: 1231399116}
     - target: {fileID: 8627335078782122898, guid: 3c9c1b1af8039474395264e45ae2ed78, type: 3}
       propertyPath: showFirstLevelIntro
       value: 1
